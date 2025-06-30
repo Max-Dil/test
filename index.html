@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="auth-container">
+        <div id="login-form">
+            <h1>Login</h1>
+            <div class="form-group">
+                <label for="username">Username:</label>
+                <input type="text" id="username" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" required>
+            </div>
+            <button onclick="login()">Login</button>
+            <p>Don't have an account? <a href="#" onclick="showRegister()">Register here</a></p>
+        </div>
+
+        <div id="register-form" class="hidden">
+            <h1>Register</h1>
+            <div class="form-group">
+                <label for="reg-username">Username:</label>
+                <input type="text" id="reg-username" required>
+            </div>
+            <div class="form-group">
+                <label for="reg-password">Password:</label>
+                <input type="password" id="reg-password" required>
+            </div>
+            <div class="form-group">
+                <label for="reg-email">Email (optional):</label>
+                <input type="email" id="reg-email">
+            </div>
+            <button onclick="register()">Register</button>
+            <p>Already have an account? <a href="#" onclick="showLogin()">Login here</a></p>
+        </div>
+    </div>
+
+    <div id="game-container" class="hidden">
+        <header>
+            <h1>Welcome, <span id="username-display"></span>!</h1>
+            <button onclick="logout()" class="logout-btn">Logout</button>
+        </header>
+        
+        <main>
+            <p>Game content goes here...</p>
+            <button onclick="testPositionUpdate()">Test Position Update</button>
+        </main>
+    </div>
+
+    <script>
+        const API_URL = "http://46.173.27.137:8000";
+        let currentToken = null;
+
+        function showLogin() {
+            document.getElementById('register-form').classList.add('hidden');
+            document.getElementById('login-form').classList.remove('hidden');
+        }
+
+        function showRegister() {
+            document.getElementById('login-form').classList.add('hidden');
+            document.getElementById('register-form').classList.remove('hidden');
+        }
+
+        async function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                const response = await fetch(`${API_URL}/api/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ username, password }),
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Login failed');
+                }
+
+                currentToken = data.token;
+                await loadUserData();
+                showGame();
+            } catch (error) {
+                alert(error.message);
+            }
+        }
+
+        async function register() {
+            const username = document.getElementById('reg-username').value;
+            const password = document.getElementById('reg-password').value;
+            const email = document.getElementById('reg-email').value;
+
+            try {
+                const response = await fetch(`${API_URL}/api/register`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ username, password, email }),
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Registration failed');
+                }
+
+                alert('Registration successful! Please login.');
+                showLogin();
+            } catch (error) {
+                alert(error.message);
+            }
+        }
+
+        async function logout() {
+            try {
+                await fetch(`${API_URL}/api/logout`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': currentToken,
+                    },
+                });
+            } catch (error) {
+                console.error('Logout error:', error);
+            } finally {
+                currentToken = null;
+                showAuth();
+            }
+        }
+
+        async function loadUserData() {
+            try {
+                const response = await fetch(`${API_URL}/api/user`, {
+                    headers: {
+                        'Authorization': currentToken,
+                    },
+                });
+
+                const data = await response.json();
+                document.getElementById('username-display').textContent = data.username;
+            } catch (error) {
+                console.error('Failed to load user data:', error);
+                logout();
+            }
+        }
+
+        async function updatePlayerPosition(x, y, z) {
+            try {
+                const response = await fetch(`${API_URL}/update_position`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': currentToken,
+                    },
+                    body: JSON.stringify({ x, y, z }),
+                });
+
+                const data = await response.json();
+                console.log('Position update response:', data);
+            } catch (error) {
+                console.error('Position update error:', error);
+            }
+        }
+
+        function testPositionUpdate() {
+            updatePlayerPosition(
+                Math.random() * 10,
+                Math.random() * 10,
+                Math.random() * 10
+            );
+        }
+
+        function showAuth() {
+            document.getElementById('auth-container').classList.remove('hidden');
+            document.getElementById('game-container').classList.add('hidden');
+            showLogin();
+        }
+
+        function showGame() {
+            document.getElementById('auth-container').classList.add('hidden');
+            document.getElementById('game-container').classList.remove('hidden');
+        }
+
+        window.onload = showAuth;
+    </script>
+</body>
+</html>
